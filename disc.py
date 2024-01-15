@@ -1,7 +1,6 @@
 from jax.scipy import linalg
 import jax.numpy as jnp
 from jax import lax
-import jax
 
 
 def lti_disc(F, L, Qc=None, dt=1.0):
@@ -24,13 +23,13 @@ def lti_disc(F, L, Qc=None, dt=1.0):
     n = F.shape[0]
     Qc = jnp.where(Qc is None, jnp.eye(L.shape[1], dtype=F.dtype), Qc)
     Phi = jnp.zeros((2 * n, 2 * n), dtype=F.dtype)
-    Phi = lax.dynamic_update_slice(Phi, F, (0, 0))
-    Phi = lax.dynamic_update_slice(Phi, L @ Qc @ L.T, (0, n))
-    Phi = lax.dynamic_update_slice(Phi, -F.T, (n, n))
+    Phi = Phi.at[0:n, 0:n].set(F)
+    Phi = Phi.at[0:n, n:].set(L @ Qc @ L.T)
+    Phi = Phi.at[n : 2 * n, n:].set(-F.T)
 
     EPhi = linalg.expm(Phi * dt)
-    A = lax.dynamic_slice(EPhi, (0, 0), (n, n))
-    Q = lax.dynamic_slice(EPhi, (0, n), (n, 2 * n))
+    A = EPhi[0:n, 0:n]
+    Q = EPhi[0:n, n:] @ A.T
 
     return A, Q
 

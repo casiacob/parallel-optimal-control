@@ -4,7 +4,7 @@ from jax import lax, vmap
 import jax
 
 
-def combine_abcej(a, b):
+def combine_abcej(elem1, elem2):
     """
     Combine two conditional value functions in backward pass of parallel LQT
     Parameters:
@@ -14,47 +14,21 @@ def combine_abcej(a, b):
     Returns:
         Aik, bik, Cik, etaik, Jik: parameters of conditional value function V_{i->k}{x_i, x_k}
     """
-    Aij, bij, Cij, etaij, Jij = a
-    Ajk, bjk, Cjk, etajk, Jjk = b
+    Aij, bij, Cij, etaij, Jij = elem1
+    Ajk, bjk, Cjk, etajk, Jjk = elem2
 
-    I = jnp.eye(Aij[0].shape[0], dtype=Aij.dtype)
-
-    LU, piv = jax.vmap(lambda Cij_, Jjk_: linalg.lu_factor(I + Cij_ @ Jjk_))(Cij, Jjk)
-
-    Aik = jax.vmap(
-        lambda Ajk_, Aij_, LU_, piv_: Ajk_ @ linalg.lu_solve((LU_, piv_), Aij_)
-    )(Ajk, Aij, LU, piv)
-
-    bik = jax.vmap(
-        lambda Ajk_, LU_, piv_, bij_, Cij_, etajk_, bjk_: Ajk_
-        @ linalg.lu_solve((LU_, piv_), bij_ + Cij_ @ etajk_)
-        + bjk_
-    )(Ajk, LU, piv, bij, Cij, etajk, bjk)
-
-    Cik = jax.vmap(
-        lambda Ajk_, LU_, piv_, Cij_, Cjk_: Ajk_
-        @ linalg.lu_solve((LU_, piv_), Cij_ @ Ajk_.T)
-        + Cjk_
-    )(Ajk, LU, piv, Cij, Cjk)
-
-    LU, piv = jax.vmap(lambda Cij_, Jjk_: linalg.lu_factor(I + Jjk_ @ Cij_))(Cij, Jjk)
-
-    etaik = jax.vmap(
-        lambda Aij_, LU_, piv_, etajk_, Jjk_, bij_, etaij_: Aij_.T
-        @ linalg.lu_solve((LU_, piv_), etajk_ - Jjk_ @ bij_)
-        + etaij_
-    )(Aij, LU, piv, etajk, Jjk, bij, etaij)
-
-    Jik = jax.vmap(
-        lambda Aij_, LU_, piv_, Jjk_, Jij_: Aij_.T
-        @ linalg.lu_solve((LU_, piv_), Jjk_ @ Aij_)
-        + Jij_
-    )(Aij, LU, piv, Jjk, Jij)
-
+    I = jnp.eye(Aij.shape[0], dtype=Aij.dtype)
+    LU, piv = linalg.lu_factor(I + jnp.dot(Cij, Jjk))
+    Aik = jnp.dot(Ajk, linalg.lu_solve((LU, piv), Aij))
+    bik = jnp.dot(Ajk, linalg.lu_solve((LU, piv), bij + jnp.dot(Cij, etajk))) + bjk
+    Cik = jnp.dot(Ajk, linalg.lu_solve((LU, piv), Cij @ Ajk.T)) + Cjk
+    LU, piv = linalg.lu_factor(I + jnp.dot(Jjk, Cij))
+    etaik = jnp.dot(Aij.T, linalg.lu_solve((LU, piv), etajk - jnp.dot(Jjk, bij))) + etaij
+    Jik = jnp.dot(Aij.T, linalg.lu_solve((LU, piv), jnp.dot(Jjk, Aij))) + Jij
     return Aik, bik, Cik, etaik, Jik
 
 
-def combine_fc(a, b):
+def combine_fc(elem1, elem2):
     """Combine two functions in forward pass of parallel LQT.
 
     Parameters:
@@ -64,11 +38,11 @@ def combine_fc(a, b):
     Returns:
         Fik, cik: parameters of function f_{i->k}(x_i)
     """
-    Fij, cij = a
-    Fjk, cjk = b
+    Fij, cij = elem1
+    Fjk, cjk = elem2
 
-    Fik = jax.vmap(lambda Fjk_, Fij_: Fjk_ @ Fij_)(Fjk, Fij)
-    cik = jax.vmap(lambda Fjk_, cij_, cjk_: Fjk_ @ cij_ + cjk_)(Fjk, cij, cjk)
+    Fik = Fjk @ Fij
+    cik = Fjk @ cij + cjk
     return Fik, cik
 
 
@@ -81,7 +55,7 @@ def par_backward_pass_scan(elems):
     Returns:
         Reverse prefix sums as a list of tuples (A, b, C, eta, J)
     """
-    return lax.associative_scan(combine_abcej, elems, reverse=True)
+    return lax.associative_scan(jax.vmap(combine_abcej), elems, reverse=True)
 
 
 def par_forward_pass_scan(elems):
@@ -93,7 +67,7 @@ def par_forward_pass_scan(elems):
     Returns:
         Forward prefix sums as a list of tuples (F, c)
     """
-    return lax.associative_scan(combine_fc, elems, reverse=False)
+    return lax.associative_scan(jax.vmap(combine_fc), elems, reverse=False)
 
 
 class LQT:
