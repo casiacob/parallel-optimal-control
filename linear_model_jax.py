@@ -120,8 +120,7 @@ class LinearModel:
         _, out = lax.scan(generate_reference_body, (curr_r, 0), jnp.arange(T))
         r, X = out
 
-        rT = jnp.array([r[0, -1], r[1, -1], 0.0, 0.0])
-
+        rT = jnp.array([r[-1, 0], r[-1, 0], 0.0, 0.0])
         c = jnp.zeros(x0.shape)
         Z = jnp.eye(U.shape[0])
         s = jnp.zeros((U.shape[0],))

@@ -14,17 +14,17 @@ def combine_abcej(elem1, elem2):
     Returns:
         Aik, bik, Cik, etaik, Jik: parameters of conditional value function V_{i->k}{x_i, x_k}
     """
-    Aij, bij, Cij, etaij, Jij = elem1
-    Ajk, bjk, Cjk, etajk, Jjk = elem2
+    Aij, bij, Cij, etaij, Jij = elem2
+    Ajk, bjk, Cjk, etajk, Jjk = elem1
 
     I = jnp.eye(Aij.shape[0], dtype=Aij.dtype)
-    LU, piv = linalg.lu_factor(I + jnp.dot(Cij, Jjk))
-    Aik = jnp.dot(Ajk, linalg.lu_solve((LU, piv), Aij))
-    bik = jnp.dot(Ajk, linalg.lu_solve((LU, piv), bij + jnp.dot(Cij, etajk))) + bjk
-    Cik = jnp.dot(Ajk, linalg.lu_solve((LU, piv), Cij @ Ajk.T)) + Cjk
-    LU, piv = linalg.lu_factor(I + jnp.dot(Jjk, Cij))
-    etaik = jnp.dot(Aij.T, linalg.lu_solve((LU, piv), etajk - jnp.dot(Jjk, bij))) + etaij
-    Jik = jnp.dot(Aij.T, linalg.lu_solve((LU, piv), jnp.dot(Jjk, Aij))) + Jij
+    LU, piv = linalg.lu_factor(I + Cij @ Jjk)
+    Aik = Ajk @ linalg.lu_solve((LU, piv), Aij)
+    bik = Ajk @ linalg.lu_solve((LU, piv), bij + Cij @ etajk) + bjk
+    Cik = Ajk @ linalg.lu_solve((LU, piv), Cij @ Ajk.T) + Cjk
+    LU, piv = linalg.lu_factor(I + Jjk @ Cij)
+    etaik = Aij.T @ linalg.lu_solve((LU, piv), etajk - Jjk @ bij) + etaij
+    Jik = Aij.T @ linalg.lu_solve((LU, piv), Jjk @ Aij) + Jij
     return Aik, bik, Cik, etaik, Jik
 
 
@@ -155,7 +155,6 @@ class LQT:
         eta = jnp.vstack((eta, etaT))
         JT = self.HT.T @ self.XT @ self.HT
         J = jnp.vstack((J, JT.reshape(1, J.shape[1], J.shape[2])))
-        jax.debug.breakpoint()
         elems = (A, b, C, eta, J)
         return elems
 
@@ -236,14 +235,13 @@ class LQT:
             + self.c
             + self.L @ d_list[0]
         )
-        elems0 = (tF0, tc0)
 
         def parForwardPass_init_body(Kx, d):
             tF = self.F - self.L @ Kx
             tc = self.c + self.L @ d
             return tF, tc
 
-        tF_, tc_ = vmap(parForwardPass_init_body)(Kx_list, d_list)
+        tF_, tc_ = vmap(parForwardPass_init_body)(Kx_list[1:], d_list[1:])
         tF_ = jnp.vstack((tF0.reshape(1, tF0.shape[0], tF0.shape[1]), tF_))
         tc_ = jnp.vstack((tc0, tc_))
         elems = (tF_, tc_)
@@ -276,8 +274,7 @@ class LQT:
 
         x_list = vmap(extract_x)(elems)
         x_list = jnp.vstack((x0, x_list))
-
-        u_list = vmap(extract_u)(elems[1][:-2], Kx_list[1:], d_list[1:])
+        u_list = vmap(extract_u)(elems[1][:-1], Kx_list[1:], d_list[1:])
         u_list = jnp.vstack((u0, u_list))
         return u_list, x_list
 
