@@ -2,7 +2,6 @@ import jax.numpy as jnp
 from jax import random, lax
 import disc
 import lqt_jax
-import jax
 
 
 class LinearModel:

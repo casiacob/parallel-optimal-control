@@ -14,9 +14,9 @@ ax.scatter(xy[0, :], xy[1, :], label="Tracked points", color="r")
 
 lqt, x0 = model.getLQT(xy)
 Kx_par, d_par, S_par, v_par = lqt.parBackwardPass()
-u_par1, x_par1 = lqt.parForwardPass(x0, Kx_par, d_par)
+u_par, x_par = lqt.parForwardPass(x0, Kx_par, d_par)
 
 
-ax.plot(x_par1[:, 0], x_par1[:, 1], label="pLQT1", color="k")
+ax.plot(x_par[:, 0], x_par[:, 1], label="pLQT1", color="k")
 _ = plt.legend()
 plt.show()

@@ -165,10 +165,10 @@ class LQT:
             elems: List of tuples (A, b, C, eta, J) for 0:T.
 
         Returns:
-            Kx_list: List of control gains for 0:T-1.
-            d_list: List of control offsets for 0:T-1.
-            S_list: List of value function matrices for 0:T.
-            v_list: List of value function offsets for 0:T.
+            Kx_array: List of control gains for 0:T-1.
+            d_array: List of control offsets for 0:T-1.
+            S_array: List of value function matrices for 0:T.
+            v_array: List of value function offsets for 0:T.
         """
 
         A_, b_, C_, eta_, J_ = elems
@@ -182,30 +182,36 @@ class LQT:
             A, b, C, eta, J = elemts
             S = J
             v = eta
-            CF, low = linalg.cho_factor(self.Z.T @ self.U @ self.Z + self.L.T @ S @ self.L)
-            Kx = linalg.cho_solve((CF, low), self.Z.T @ self.M.T @ self.H + self.L.T @ S @ self.F)
+            CF, low = linalg.cho_factor(
+                self.Z.T @ self.U @ self.Z + self.L.T @ S @ self.L
+            )
+            Kx = linalg.cho_solve(
+                (CF, low), self.Z.T @ self.M.T @ self.H + self.L.T @ S @ self.F
+            )
             d = linalg.cho_solve(
                 (CF, low),
-                self.Z.T @ self.U @ self.s + self.Z.T @ self.M.T @ r - self.L.T @ S @ self.c + self.L.T @ v,
+                self.Z.T @ self.U @ self.s
+                + self.Z.T @ self.M.T @ r
+                - self.L.T @ S @ self.c
+                + self.L.T @ v,
             )
             return Kx, d, S, v
 
-        Kx_list, d_list, S_list, v_list = vmap(parBackwarPass_extract_body)(
-            (A_[1:], b_[1:], C_[1:], eta_[1:], J_[1:]),
-            self.r
+        Kx_array, d_array, S_array, v_array = vmap(parBackwarPass_extract_body)(
+            (A_[1:], b_[1:], C_[1:], eta_[1:], J_[1:]), self.r
         )
-        S_list = jnp.vstack((J0.reshape(1, J0.shape[0], J0.shape[1]), S_list))
-        v_list = jnp.vstack((eta0, v_list))
-        return Kx_list, d_list, S_list, v_list
+        S_array = jnp.vstack((J0.reshape(1, J0.shape[0], J0.shape[1]), S_array))
+        v_array = jnp.vstack((eta0, v_array))
+        return Kx_array, d_array, S_array, v_array
 
     def parBackwardPass(self):
         """Parallel LQT backward pass.
 
         Returns:
-            Kx_list: List of control gains for 0:T-1.
-            d_list: List of control offsets for 0:T-1.
-            S_list: List of value function matrices for 0:T.
-            v_list: List of value function offsets for 0:T.
+            Kx_array: List of control gains for 0:T-1.
+            d_array: List of control offsets for 0:T-1.
+            S_array: List of value function matrices for 0:T.
+            v_array: List of value function offsets for 0:T.
         """
 
         # Initialize
@@ -217,51 +223,46 @@ class LQT:
         # Extract the results
         return self.parBackwardPass_extract(elems)
 
-    def parForwardPass_init(self, x0, Kx_list, d_list):
+    def parForwardPass_init(self, x0, Kx_array, d_array):
         """Parallel LQT forward pass initialization.
 
         Parameters:
             x0: Initial state.
-            Kx_list: List of control gains for 0:T-1.
-            d_list: List of control offsets for 0:T-1.
+            Kx_array: List of control gains for 0:T-1.
+            d_array: List of control offsets for 0:T-1.
 
         Returns:
             elems: List of tuples (F, c) for 0:T.
         """
 
         tF0 = jnp.zeros_like(self.F)
-        tc0 = (
-            (self.F - self.L @ Kx_list[0]) @ x0
-            + self.c
-            + self.L @ d_list[0]
-        )
+        tc0 = (self.F - self.L @ Kx_array[0]) @ x0 + self.c + self.L @ d_array[0]
 
         def parForwardPass_init_body(Kx, d):
             tF = self.F - self.L @ Kx
             tc = self.c + self.L @ d
             return tF, tc
 
-        tF_, tc_ = vmap(parForwardPass_init_body)(Kx_list[1:], d_list[1:])
+        tF_, tc_ = vmap(parForwardPass_init_body)(Kx_array[1:], d_array[1:])
         tF_ = jnp.vstack((tF0.reshape(1, tF0.shape[0], tF0.shape[1]), tF_))
         tc_ = jnp.vstack((tc0, tc_))
         elems = (tF_, tc_)
         return elems
 
-    def parForwardPass_extract(self, x0, Kx_list, d_list, elems):
+    def parForwardPass_extract(self, x0, Kx_array, d_array, elems):
         """Parallel LQT forward pass result extraction.
 
         Parameters:
             x0: Initial state.
-            Kx_list: List of control gains for 0:T-1.
-            d_list: List of control offsets for 0:T-1.
+            Kx_array: List of control gains for 0:T-1.
+            d_array: List of control offsets for 0:T-1.
             elems: List of tuples (F, c) for 0:T-1.
 
         Returns:
-            u_list: List of controls for 0:T-1.
-            x_list: List of states for 0:T.
+            u_array: List of controls for 0:T-1.
+            x_array: List of states for 0:T.
         """
-        u0 = -Kx_list[0] @ x0 + d_list[0]
-
+        u0 = -Kx_array[0] @ x0 + d_array[0]
 
         def extract_x(el):
             _, tc = el
@@ -272,48 +273,48 @@ class LQT:
             u = -Kx @ tc + d
             return u
 
-        x_list = vmap(extract_x)(elems)
-        x_list = jnp.vstack((x0, x_list))
-        u_list = vmap(extract_u)(elems[1][:-1], Kx_list[1:], d_list[1:])
-        u_list = jnp.vstack((u0, u_list))
-        return u_list, x_list
+        x_array = vmap(extract_x)(elems)
+        x_array = jnp.vstack((x0, x_array))
+        u_array = vmap(extract_u)(elems[1][:-1], Kx_array[1:], d_array[1:])
+        u_array = jnp.vstack((u0, u_array))
+        return u_array, x_array
 
-    def parForwardPass(self, x0, Kx_list, d_list):
+    def parForwardPass(self, x0, Kx_array, d_array):
         """Parallel LQT forward pass.
 
         Parameters:
             x0: Initial state.
-            Kx_list: List of control gains for 0:T-1.
-            d_list: List of control offsets for 0:T-1.
+            Kx_array: List of control gains for 0:T-1.
+            d_array: List of control offsets for 0:T-1.
 
         Returns:
-            u_list: List of controls for 0:T-1.
-            x_list: List of states for 0:T.
+            u_array: List of controls for 0:T-1.
+            x_array: List of states for 0:T.
         """
         # Initialize
-        elems = self.parForwardPass_init(x0, Kx_list, d_list)
+        elems = self.parForwardPass_init(x0, Kx_array, d_array)
 
         # Call the associative scan
         elems = par_forward_pass_scan(elems)
 
         # Extract the results
-        return self.parForwardPass_extract(x0, Kx_list, d_list, elems)
+        return self.parForwardPass_extract(x0, Kx_array, d_array, elems)
 
-    def cost(self, u_list, x_list):
+    def cost(self, u_array, x_array):
         """Compute the cost of a trajectory.
 
         Parameters:
-            u_list: List of control vectors for 0:T-1.
-            x_list: List of state vectors for 0:T.
+            u_array: List of control vectors for 0:T-1.
+            x_array: List of state vectors for 0:T.
 
         Returns:
             res: Cost of the trajectory.
         """
         final_cost = (
             0.5
-            * (self.HT @ x_list[-1] - self.rT).T
+            * (self.HT @ x_array[-1] - self.rT).T
             @ self.XT
-            @ (self.HT @ x_list[-1] - self.rT)
+            @ (self.HT @ x_array[-1] - self.rT)
         )
 
         def stage_cost(H, x, r, X, Z, u, s, U, M):
@@ -323,7 +324,15 @@ class LQT:
             return ln
 
         stage_costs = vmap(stage_cost)(
-            self.H, x_list[:-1], self.r, self.X, self.Z, u_list, self.s, self.U, self.M
+            self.H,
+            x_array[:-1],
+            self.r,
+            self.X,
+            self.Z,
+            u_array,
+            self.s,
+            self.U,
+            self.M,
         )
 
         return final_cost + jnp.sum(stage_costs)
