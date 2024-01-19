@@ -192,13 +192,15 @@ class LQT:
             x = F @ x + c + L @ u
             return x, (u, x)
 
-        _, fwd_pass_out = lax.scan(fwd_step, x0, (Kx_array, d_array, self.F, self.c, self.L))
+        _, fwd_pass_out = lax.scan(
+            fwd_step, x0, (Kx_array, d_array, self.F, self.c, self.L)
+        )
         u_array, x_array = fwd_pass_out
         x_array = jnp.vstack((x0, x_array))
         return u_array, x_array
 
     def seqSimulation(self, x0, u_array):
-        """ Sequential simulation of the system
+        """Sequential simulation of the system
 
         Args:
             x0: Initial state.
