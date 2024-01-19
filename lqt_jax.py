@@ -118,6 +118,111 @@ class LQT:
         self.s = s
         self.M = M
 
+    #######################################################################
+    # Sequential computation of gains, value functions, states, and controls
+    #######################################################################
+    def seqBackwardPass(self):
+        """Sequential backward pass to compute control laws and value functions.
+
+        Returns:
+             Kx_array: Array of control gains for 0:T-1.
+             d_array: List of control offsets for 0:T-1.
+             S_list: List of value function matrices for 0:T.
+             v_list: List of value function offsets for 0:T.
+        """
+        ST = self.HT.T @ self.XT @ self.HT
+        vT = self.HT.T @ self.XT @ self.rT
+
+        def bwd_step(carry, inp):
+            S, v = carry
+            F, L, X, U, c, H, r, Z, s, M = inp
+            CF, low = linalg.cho_factor(Z.T @ U @ Z + L.T @ S @ L)
+            Kx = linalg.cho_solve((CF, low), Z.T @ M.T @ H + L.T @ S @ F)
+            d = linalg.cho_solve(
+                (CF, low), Z.T @ U @ s + Z.T @ M.T @ r - L.T @ S @ c + L.T @ v
+            )
+            v = (
+                H.T @ X @ r
+                - Kx.T @ Z.T @ U @ s
+                + H.T @ M @ s
+                - Kx.T @ Z.T @ M.T @ r
+                + (F - L @ Kx).T @ (v - S @ c)
+            )
+            S = H.T @ X @ H - H.T @ M @ Z @ Kx + F.T @ S @ (F - L @ Kx)
+            return (S, v), (Kx, d, S, v)
+
+        _, bwd_pass_out = lax.scan(
+            bwd_step,
+            (ST, vT),
+            (
+                self.F,
+                self.L,
+                self.X,
+                self.U,
+                self.c,
+                self.H,
+                self.r,
+                self.Z,
+                self.s,
+                self.M,
+            ),
+            reverse=True,
+        )
+        Kx_array, d_array, S_array, v_array = bwd_pass_out
+        S_array = jnp.vstack((S_array, ST.reshape(1, ST.shape[0], ST.shape[0])))
+        v_array = jnp.vstack((v_array, vT))
+        return Kx_array, d_array, S_array, v_array
+
+    def seqForwardPass(self, x0, Kx_array, d_array):
+        """
+        Args:
+            x0: Initial state.
+            Kx_array: Array of control gains for 0:T-1
+            d_array: Array of control offsets for 0:T-1
+
+        Returns:
+            u_array: Array of controls for 0:T-1
+            x_array: Array of states for 0:T.
+        """
+
+        def fwd_step(carry, inp):
+            x = carry
+            Kx, d, F, c, L = inp
+            u = -Kx @ x + d
+            x = F @ x + c + L @ u
+            return x, (u, x)
+
+        _, fwd_pass_out = lax.scan(fwd_step, x0, (Kx_array, d_array, self.F, self.c, self.L))
+        u_array, x_array = fwd_pass_out
+        x_array = jnp.vstack((x0, x_array))
+        return u_array, x_array
+
+    def seqSimulation(self, x0, u_array):
+        """ Sequential simulation of the system
+
+        Args:
+            x0: Initial state.
+            u_array: Array of controls for 0:T-1
+
+        Returns:
+            x_array: Array of states for 0:T
+        """
+
+        def body(carry, inp):
+            x = carry
+            u, F, c, L = inp
+            x = F @ x + c + L @ u
+            return x, x
+
+        _, x_array = lax.scan(body, x0, (u_array, self.F, self.c, self.L))
+        x_array = jnp.vstack((x0, x_array))
+
+        return x_array
+
+    #######################################################################
+    # Parallel computation of gains, value functions, states, and controls
+    #######################################################################
+
     def parBackwardPass_init(self):
         """Parallel LQT backward pass initialization.
 
@@ -237,14 +342,20 @@ class LQT:
         """
 
         tF0 = jnp.zeros_like(self.F[0])
-        tc0 = (self.F[0] - self.L[0] @ Kx_array[0]) @ x0 + self.c[0] + self.L[0] @ d_array[0]
+        tc0 = (
+            (self.F[0] - self.L[0] @ Kx_array[0]) @ x0
+            + self.c[0]
+            + self.L[0] @ d_array[0]
+        )
 
         def parForwardPass_init_body(Kx, d, F, L, c):
             tF = F - L @ Kx
             tc = c + L @ d
             return tF, tc
 
-        tF_, tc_ = vmap(parForwardPass_init_body)(Kx_array[1:], d_array[1:], self.F[1:], self.L[1:], self.c[1:])
+        tF_, tc_ = vmap(parForwardPass_init_body)(
+            Kx_array[1:], d_array[1:], self.F[1:], self.L[1:], self.c[1:]
+        )
         tF_ = jnp.vstack((tF0.reshape(1, tF0.shape[0], tF0.shape[1]), tF_))
         tc_ = jnp.vstack((tc0, tc_))
         elems = (tF_, tc_)
