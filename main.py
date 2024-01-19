@@ -1,6 +1,7 @@
 import linear_model_jax
 import matplotlib.pyplot as plt
 from jax import config
+import jax
 
 config.update("jax_enable_x64", True)
 config.update("jax_platform_name", "cpu")

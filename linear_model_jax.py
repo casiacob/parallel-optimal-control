@@ -5,7 +5,7 @@ import lqt_jax
 
 
 class LinearModel:
-    def __init__(self, seed=123):
+    def __init__(self, seed=190):
         """Form simple linear model with quadratic cost.
 
         Parameters:
@@ -80,13 +80,17 @@ class LinearModel:
         """
 
         dt = 1.0 / steps
+        N = xy.shape[1]
+        T = steps * N
 
         U = 0.1 * jnp.eye(2)
+        Z = jnp.eye(U.shape[0])
         H = jnp.array([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]])
         HT = jnp.eye(4)
         Xl = 100.0 * jnp.eye(2)
         Xn = 1e-6 * jnp.eye(2)
         XT = 1.0 * jnp.eye(4)
+        s = jnp.zeros((T, U.shape[0]))
 
         F = jnp.array(
             [
@@ -102,8 +106,6 @@ class LinearModel:
         G = jnp.array([[0.0, 0.0], [0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
 
         F, L, Q = disc.lti_disc_u(F, L, G, Qc, dt)
-        N = xy.shape[1]
-        T = steps * N
 
         curr_r = xy[:, 0]
         x0 = jnp.array([curr_r[0], curr_r[1], 0.0, 0.0])
@@ -120,10 +122,17 @@ class LinearModel:
         r, X = out
 
         rT = jnp.array([r[-1, 0], r[-1, 0], 0.0, 0.0])
-        c = jnp.zeros(x0.shape)
-        Z = jnp.eye(U.shape[0])
-        s = jnp.zeros((U.shape[0],))
+        c = jnp.zeros((T, x0.shape[0]))
         M = jnp.zeros((r.shape[1], U.shape[0]))
+
+        F = jnp.kron(jnp.ones((T, 1, 1)), F)
+        L = jnp.kron(jnp.ones((T, 1, 1)), L)
+        Q = jnp.kron(jnp.ones((T, 1, 1)), Q)
+        U = jnp.kron(jnp.ones((T, 1, 1)), U)
+        H = jnp.kron(jnp.ones((T, 1, 1)), H)
+        Z = jnp.kron(jnp.ones((T, 1, 1)), Z)
+        M = jnp.kron(jnp.ones((T, 1, 1)), M)
+
         lqt = lqt_jax.LQT(F, L, X, U, XT, c, H, r, HT, rT, Z, s, M)
 
         return lqt, x0

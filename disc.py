@@ -25,7 +25,7 @@ def lti_disc(F, L, Qc=None, dt=1.0):
     Phi = jnp.zeros((2 * n, 2 * n), dtype=F.dtype)
     Phi = Phi.at[0:n, 0:n].set(F)
     Phi = Phi.at[0:n, n:].set(L @ Qc @ L.T)
-    Phi = Phi.at[n: 2 * n, n:].set(-F.T)
+    Phi = Phi.at[n : 2 * n, n:].set(-F.T)
 
     EPhi = linalg.expm(Phi * dt)
     A = EPhi[0:n, 0:n]

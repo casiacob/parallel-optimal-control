@@ -125,31 +125,33 @@ class LQT:
             elems: List of tuples (A, b, C, eta, J) for 0:T.
         """
 
-        def parBackwardPass_init_body(X, r):
-            LU, piv = linalg.lu_factor(self.U @ self.Z)
-            Ak = self.F - self.L @ linalg.lu_solve((LU, piv), self.M.T @ self.H)
-            bk = (
-                self.c
-                + self.L @ linalg.lu_solve((LU, piv), self.M.T @ r)
-                + self.L @ linalg.solve(self.Z, self.s)
-            )
-            Ck = self.L @ linalg.solve(
-                self.Z.T @ self.U @ self.Z, self.L.T, assume_a="pos"
-            )
-            Y = X - self.M @ linalg.solve(self.U, self.M.T)
-            etak = self.H.T @ Y @ r
-            Jk = self.H.T @ Y @ self.H
+        def parBackwardPass_init_body(F, L, X, U, c, H, r, Z, s, M):
+            LU, piv = linalg.lu_factor(U @ Z)
+            Ak = F - L @ linalg.lu_solve((LU, piv), M.T @ H)
+            bk = c + L @ linalg.lu_solve((LU, piv), M.T @ r) + L @ linalg.solve(Z, s)
+            Ck = L @ linalg.solve(Z.T @ U @ Z, L.T, assume_a="pos")
+            Y = X - M @ linalg.solve(U, M.T)
+            etak = H.T @ Y @ r
+            Jk = H.T @ Y @ H
             return Ak, bk, Ck, etak, Jk
 
         A, b, C, eta, J = vmap(parBackwardPass_init_body)(
+            self.F,
+            self.L,
             self.X,
+            self.U,
+            self.c,
+            self.H,
             self.r,
+            self.Z,
+            self.s,
+            self.M,
         )
-        AT = jnp.zeros_like(self.F)
+        AT = jnp.zeros_like(self.F[0])
         A = jnp.vstack((A, AT.reshape(1, A.shape[1], A.shape[2])))
-        bT = jnp.zeros_like(self.F[:, 0])
+        bT = jnp.zeros_like(self.F[0][:, 0])
         b = jnp.vstack((b, bT))
-        CT = jnp.zeros_like(self.F)
+        CT = jnp.zeros_like(self.F[0])
         C = jnp.vstack((C, CT.reshape(1, C.shape[1], C.shape[2])))
         etaT = self.HT.T @ self.XT @ self.rT
         eta = jnp.vstack((eta, etaT))
@@ -175,30 +177,29 @@ class LQT:
         eta0 = eta_[0]
         J0 = J_[0]
 
-        def parBackwarPass_extract_body(
-            elemts,
-            r,
-        ):
+        def parBackwarPass_extract_body(elemts, F, L, U, c, H, r, Z, s, M):
             A, b, C, eta, J = elemts
             S = J
             v = eta
-            CF, low = linalg.cho_factor(
-                self.Z.T @ self.U @ self.Z + self.L.T @ S @ self.L
-            )
-            Kx = linalg.cho_solve(
-                (CF, low), self.Z.T @ self.M.T @ self.H + self.L.T @ S @ self.F
-            )
+            CF, low = linalg.cho_factor(Z.T @ U @ Z + L.T @ S @ L)
+            Kx = linalg.cho_solve((CF, low), Z.T @ M.T @ H + L.T @ S @ F)
             d = linalg.cho_solve(
                 (CF, low),
-                self.Z.T @ self.U @ self.s
-                + self.Z.T @ self.M.T @ r
-                - self.L.T @ S @ self.c
-                + self.L.T @ v,
+                Z.T @ U @ s + Z.T @ M.T @ r - L.T @ S @ c + L.T @ v,
             )
             return Kx, d, S, v
 
         Kx_array, d_array, S_array, v_array = vmap(parBackwarPass_extract_body)(
-            (A_[1:], b_[1:], C_[1:], eta_[1:], J_[1:]), self.r
+            (A_[1:], b_[1:], C_[1:], eta_[1:], J_[1:]),
+            self.F,
+            self.L,
+            self.U,
+            self.c,
+            self.H,
+            self.r,
+            self.Z,
+            self.s,
+            self.M,
         )
         S_array = jnp.vstack((J0.reshape(1, J0.shape[0], J0.shape[1]), S_array))
         v_array = jnp.vstack((eta0, v_array))
@@ -235,15 +236,15 @@ class LQT:
             elems: List of tuples (F, c) for 0:T.
         """
 
-        tF0 = jnp.zeros_like(self.F)
-        tc0 = (self.F - self.L @ Kx_array[0]) @ x0 + self.c + self.L @ d_array[0]
+        tF0 = jnp.zeros_like(self.F[0])
+        tc0 = (self.F[0] - self.L[0] @ Kx_array[0]) @ x0 + self.c[0] + self.L[0] @ d_array[0]
 
-        def parForwardPass_init_body(Kx, d):
-            tF = self.F - self.L @ Kx
-            tc = self.c + self.L @ d
+        def parForwardPass_init_body(Kx, d, F, L, c):
+            tF = F - L @ Kx
+            tc = c + L @ d
             return tF, tc
 
-        tF_, tc_ = vmap(parForwardPass_init_body)(Kx_array[1:], d_array[1:])
+        tF_, tc_ = vmap(parForwardPass_init_body)(Kx_array[1:], d_array[1:], self.F[1:], self.L[1:], self.c[1:])
         tF_ = jnp.vstack((tF0.reshape(1, tF0.shape[0], tF0.shape[1]), tF_))
         tc_ = jnp.vstack((tc0, tc_))
         elems = (tF_, tc_)
