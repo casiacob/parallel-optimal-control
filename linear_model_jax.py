@@ -2,10 +2,11 @@ import jax.numpy as jnp
 from jax import random, lax
 import disc
 import lqt_jax
+import jax
 
 
 class LinearModel:
-    def __init__(self, seed=190):
+    def __init__(self, seed=25627):
         """Form simple linear model with quadratic cost.
 
         Parameters:

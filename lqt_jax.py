@@ -256,14 +256,19 @@ class LQT:
         )
         AT = jnp.zeros_like(self.F[0])
         A = jnp.vstack((A, AT.reshape(1, A.shape[1], A.shape[2])))
+
         bT = jnp.zeros_like(self.F[0][:, 0])
         b = jnp.vstack((b, bT))
+
         CT = jnp.zeros_like(self.F[0])
         C = jnp.vstack((C, CT.reshape(1, C.shape[1], C.shape[2])))
+
         etaT = self.HT.T @ self.XT @ self.rT
         eta = jnp.vstack((eta, etaT))
+
         JT = self.HT.T @ self.XT @ self.HT
         J = jnp.vstack((J, JT.reshape(1, J.shape[1], J.shape[2])))
+
         elems = (A, b, C, eta, J)
         return elems
 
@@ -289,11 +294,13 @@ class LQT:
             S = J
             v = eta
             CF, low = linalg.cho_factor(Z.T @ U @ Z + L.T @ S @ L)
+            # jax.debug.print('{x}', x=jnp.linalg.eigvals(Z.T @ U @ Z + L.T @ S @ L))
             Kx = linalg.cho_solve((CF, low), Z.T @ M.T @ H + L.T @ S @ F)
             d = linalg.cho_solve(
                 (CF, low),
                 Z.T @ U @ s + Z.T @ M.T @ r - L.T @ S @ c + L.T @ v,
             )
+            # jax.debug.breakpoint()
             return Kx, d, S, v
 
         Kx_array, d_array, S_array, v_array = vmap(parBackwarPass_extract_body)(
