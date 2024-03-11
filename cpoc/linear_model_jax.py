@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from jax import random, lax
-import disc
-import lqt_jax
+from cpoc import disc
+from cpoc import lqt_jax
 import jax
 
 

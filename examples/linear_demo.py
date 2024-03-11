@@ -1,4 +1,4 @@
-import linear_model_jax
+from cpoc import linear_model_jax
 import matplotlib.pyplot as plt
 from jax import config
 import numpy
