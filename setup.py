@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name="cpoc",
+    name="paroc",
     version="0.0.1",
     author="",
     author_email="",
@@ -9,4 +9,3 @@ setup(
     install_requires=["jax", "matplotlib"],
     zip_safe=False,
 )
-

@@ -1,6 +1,8 @@
 import jax.numpy as jnp
 import numpy as np
-import lqt_jax
+from paroc.lqt_problem import LQT
+from paroc import par_bwd_pass, par_fwd_pass
+from paroc import seq_bwd_pass, seq_fwd_pass
 import unittest
 from jax import config
 
@@ -65,20 +67,20 @@ class LQT_jax_UnitTest(unittest.TestCase):
         s = jnp.array(s)
         M = jnp.array(M)
 
-        lqt = lqt_jax.LQT(F, L, X, U, XT, c, H, r, HT, rT, Z, s, M)
+        lqt = LQT(F, L, c, XT, HT, rT, X, H, r, U, Z, s, M)
         return lqt, x0
 
     def test_seq_par_rnd_tracking_1(self):
         lqt, x0 = self.setupRndLQT()
 
-        Kx_list1, d_list1, S_list1, v_list1 = lqt.seqBackwardPass()
-        Kx_list2, d_list2, S_list2, v_list2 = lqt.parBackwardPass()
+        Kx_par, d_par, S_par, v_par, _, _ = par_bwd_pass(lqt)
+        Kx_seq, d_seq, S_seq, v_seq = seq_bwd_pass(lqt)
 
-        u_list1, x_list1 = lqt.seqForwardPass(x0, Kx_list1, d_list1)
-        u_list2, x_list2 = lqt.parForwardPass(x0, Kx_list2, d_list2)
+        u_par, x_par = par_fwd_pass(lqt, x0, Kx_par, d_par)
+        u_seq, x_seq = par_fwd_pass(lqt, x0, Kx_seq, d_seq)
 
-        err = jnp.max(jnp.abs(x_list1 - x_list2))
+        err = jnp.max(jnp.abs(x_par - x_seq))
         self.assertTrue(err < 1e-10)
 
-        err = jnp.max(jnp.abs(u_list1 - u_list2))
+        err = jnp.max(jnp.abs(u_par - u_seq))
         self.assertTrue(err < 1e-10)
