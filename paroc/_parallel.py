@@ -1,6 +1,8 @@
 import jax.numpy as jnp
+import jax.scipy.linalg as jlinalg
 from jax import lax, vmap
 from paroc.lqt_problem import LQT
+import jax
 
 def combine_abcej(elem1, elem2):
     """
@@ -16,11 +18,12 @@ def combine_abcej(elem1, elem2):
     Aij, bij, Cij, etaij, Jij = elem2
 
     I = jnp.eye(Aij.shape[0], dtype=Aij.dtype)
-    Aik = Ajk @ jnp.linalg.solve(I + Cij @ Jjk, Aij)
-    bik = Ajk @ jnp.linalg.solve(I + Cij @ Jjk, bij + Cij @ etajk) + bjk
-    Cik = Ajk @ jnp.linalg.solve(I + Cij @ Jjk, Cij @ Ajk.T) + Cjk
-    etaik = Aij.T @ jnp.linalg.solve(I + Jjk @ Cij, etajk - Jjk @ bij) + etaij
-    Jik = Aij.T @ jnp.linalg.solve(I + Jjk @ Cij, Jjk @ Aij) + Jij
+    Aik = jnp.dot(Ajk, jlinalg.solve(I + jnp.dot(Cij, Jjk), Aij))
+    bik = jnp.dot(Ajk, jlinalg.solve(I + jnp.dot(Cij, Jjk), bij + jnp.dot(Cij, etajk))) + bjk
+    Cik = jnp.dot(Ajk, jlinalg.solve(I + jnp.dot(Cij, Jjk), jnp.dot(Cij, Ajk.T))) + Cjk
+    etaik = jnp.dot(Aij.T, jlinalg.solve(I + jnp.dot(Jjk, Cij), etajk - jnp.dot(Jjk, bij))) + etaij
+    Jik = jnp.dot(Aij.T, jlinalg.solve(I + jnp.dot(Jjk, Cij), jnp.dot(Jjk, Aij))) + Jij
+    # jax.debug.breakpoint()
     return Aik, bik, Cik, etaik, Jik
 
 
@@ -63,7 +66,7 @@ def par_fwd_pass_scan(elems):
     Returns:
         Forward prefix sums as a list of tuples (F, c)
     """
-    return lax.associative_scan(vmap(combine_fc), elems, reverse=False)
+    return lax.associative_scan(vmap(combine_fc), elems)
 
 
 def par_bwd_pass_init(ocp: LQT):
@@ -77,10 +80,10 @@ def par_bwd_pass_init(ocp: LQT):
     """
 
     def body(F, L, c, X, H, r, U, Z, s, M):
-        Ak = F - L @ jnp.linalg.solve(U @ Z, M.T @ H)
-        bk = c + L @ jnp.linalg.solve(U @ Z, M.T @ r) + L @ jnp.linalg.solve(Z, s)
-        Ck = L @ jnp.linalg.solve(Z.T @ U @ Z, L.T)
-        Y = X - M @ jnp.linalg.solve(U, M.T)
+        Ak = F - L @ jlinalg.solve(U @ Z, M.T @ H)
+        bk = c + L @ jlinalg.solve(U @ Z, M.T @ r) + L @ jnp.linalg.solve(Z, s)
+        Ck = L @ jlinalg.solve(Z.T @ U @ Z, L.T)
+        Y = X - M @ jlinalg.solve(U, M.T)
         etak = H.T @ Y @ r
         Jk = H.T @ Y @ H
         return Ak, bk, Ck, etak, Jk
@@ -141,10 +144,13 @@ def par_bwd_pass_extract(ocp: LQT, elems):
         S = J
         v = eta
         # check if Hessian is positive definite
-        pos_def = jnp.all(jnp.linalg.eigvals(Z.T @ U @ Z + L.T @ S @ L) > 0)
-        Kx = jnp.linalg.solve(Z.T @ U @ Z + L.T @ S @ L, Z.T @ M.T @ H + L.T @ S @ F)
-        d = jnp.linalg.solve(
-            Z.T @ U @ Z + L.T @ S @ L,
+        Hess = Z.T @ U @ Z + L.T @ S @ L
+        Hess = 0.5 * (Hess.T + Hess)
+        eigv, _ = jnp.linalg.eigh(Z.T @ U @ Z + L.T @ S @ L)
+        pos_def = jnp.all(eigv > 0)
+        Kx = jlinalg.solve(Hess, Z.T @ M.T @ H + L.T @ S @ F)
+        d = jlinalg.solve(
+            Hess,
             Z.T @ U @ s + Z.T @ M.T @ r - L.T @ S @ c + L.T @ v,
         )
         # predicted cost reduction
