@@ -23,7 +23,6 @@ def combine_abcej(elem1, elem2):
     Cik = jnp.dot(Ajk, jlinalg.solve(I + jnp.dot(Cij, Jjk), jnp.dot(Cij, Ajk.T))) + Cjk
     etaik = jnp.dot(Aij.T, jlinalg.solve(I + jnp.dot(Jjk, Cij), etajk - jnp.dot(Jjk, bij))) + etaij
     Jik = jnp.dot(Aij.T, jlinalg.solve(I + jnp.dot(Jjk, Cij), jnp.dot(Jjk, Aij))) + Jij
-    # jax.debug.breakpoint()
     return Aik, bik, Cik, etaik, Jik
 
 
@@ -146,18 +145,37 @@ def par_bwd_pass_extract(ocp: LQT, elems):
         # check if Hessian is positive definite
         Hess = Z.T @ U @ Z + L.T @ S @ L
         Hess = 0.5 * (Hess.T + Hess)
-        eigv, _ = jnp.linalg.eigh(Z.T @ U @ Z + L.T @ S @ L)
+        eigv, _ = jlinalg.eigh(Z.T @ U @ Z + L.T @ S @ L)
         pos_def = jnp.all(eigv > 0)
-        Kx = jlinalg.solve(Hess, Z.T @ M.T @ H + L.T @ S @ F)
-        d = jlinalg.solve(
-            Hess,
-            Z.T @ U @ s + Z.T @ M.T @ r - L.T @ S @ c + L.T @ v,
-        )
-        # predicted cost reduction
-        z = (
-                -d.T @ (Z.T @ U @ s + Z.T @ M.T @ r - L.T @ S @ c + L.T @ v)
-                + 0.5 * d.T @ (Z.T @ U @ Z + L.T @ S @ L) @ d
-        )
+        # Kx = jlinalg.solve(Hess, Z.T @ M.T @ H + L.T @ S @ F)
+        # d = jlinalg.solve(
+        #     Hess,
+        #     Z.T @ U @ s + Z.T @ M.T @ r - L.T @ S @ c + L.T @ v,
+        # )
+        # # predicted cost reduction
+        # z = (
+        #         -d.T @ (Z.T @ U @ s + Z.T @ M.T @ r - L.T @ S @ c + L.T @ v)
+        #         + 0.5 * d.T @ (Z.T @ U @ Z + L.T @ S @ L) @ d
+        # )
+        def hessian_is_pos_def(operands):
+            Hess_pd, Z_pd, M_pd, H_pd, L_pd, S_pd, F_pd, U_pd, s_pd, r_pd, c_pd, v_pd = operands
+            Kx_pd = jlinalg.solve(Hess_pd, Z_pd.T @ M_pd.T @ H_pd + L_pd.T @ S_pd @ F_pd, assume_a='pos')
+            d_pd = jlinalg.solve(
+                Hess_pd,
+                Z_pd.T @ U_pd @ s_pd + Z_pd.T @ M_pd.T @ r_pd - L_pd.T @ S_pd @ c_pd + L_pd.T @ v_pd,
+                assume_a='pos'
+            )
+            z_pd = (
+                    -d_pd.T @ (Z_pd.T @ U_pd @ s_pd + Z_pd.T @ M_pd.T @ r_pd - L_pd.T @ S_pd @ c_pd + L_pd.T @ v_pd)
+                    + 0.5 * d_pd.T @ (Z_pd.T @ U_pd @ Z_pd + L_pd.T @ S_pd @ L_pd) @ d_pd
+            )
+            return Kx_pd, d_pd, z_pd
+
+        def hessian_is_not_pos_def(operands):
+            Hess_pd, _, _, _, _, _, F_pd, _, _, _, _, _ = operands
+            return jnp.zeros((Hess_pd.shape[0], F_pd.shape[0])), jnp.zeros((Hess_pd.shape[0], )), 1.
+
+        Kx, d, z = jax.lax.cond(pos_def, hessian_is_pos_def, hessian_is_not_pos_def, (Hess, Z, M, H, L, S, F, U, s, r, c, v))
         return Kx, d, S, v, z, pos_def
 
     Kx_array, d_array, S_array, v_array, z_array, pos_def_array = vmap(
