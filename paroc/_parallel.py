@@ -145,7 +145,7 @@ def par_bwd_pass_extract(ocp: LQT, elems):
         # check if Hessian is positive definite
         Hess = Z.T @ U @ Z + L.T @ S @ L
         Hess = 0.5 * (Hess.T + Hess)
-        eigv, _ = jlinalg.eigh(Z.T @ U @ Z + L.T @ S @ L)
+        eigv, _ = jlinalg.eigh(Hess)
         pos_def = jnp.all(eigv > 0)
         # Kx = jlinalg.solve(Hess, Z.T @ M.T @ H + L.T @ S @ F)
         # d = jlinalg.solve(
