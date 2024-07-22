@@ -3,6 +3,7 @@ from jax import lax
 import jax.scipy as jcp
 import jax.numpy as jnp
 
+
 def seq_bwd_pass(ocp: LQT):
     """Sequential backward pass to compute control laws and value functions.
 
@@ -28,11 +29,11 @@ def seq_bwd_pass(ocp: LQT):
             (CF, low), Z.T @ U @ s + Z.T @ M.T @ r - L.T @ S @ c + L.T @ v
         )
         v = (
-                H.T @ X @ r
-                - Kx.T @ Z.T @ U @ s
-                + H.T @ M @ s
-                - Kx.T @ Z.T @ M.T @ r
-                + (F - L @ Kx).T @ (v - S @ c)
+            H.T @ X @ r
+            - Kx.T @ Z.T @ U @ s
+            + H.T @ M @ s
+            - Kx.T @ Z.T @ M.T @ r
+            + (F - L @ Kx).T @ (v - S @ c)
         )
         S = H.T @ X @ H - H.T @ M @ Z @ Kx + F.T @ S @ (F - L @ Kx)
         return (S, v), (Kx, d, S, v)
@@ -59,7 +60,9 @@ def seq_bwd_pass(ocp: LQT):
     return Kx_array, d_array, S_array, v_array
 
 
-def seq_fwd_pass(ocp: LQT, x0: jnp.ndarray, Kx_array: jnp.ndarray, d_array: jnp.ndarray):
+def seq_fwd_pass(
+    ocp: LQT, x0: jnp.ndarray, Kx_array: jnp.ndarray, d_array: jnp.ndarray
+):
     """
     Args:
         ocp: optimal control problem in LQT format
@@ -87,7 +90,7 @@ def seq_fwd_pass(ocp: LQT, x0: jnp.ndarray, Kx_array: jnp.ndarray, d_array: jnp.
 
 
 def seq_state_rollout(ocp: LQT, x0: jnp.ndarray, u_array: jnp.ndarray):
-    """ Sequential state rollout given initial state and control sequence
+    """Sequential state rollout given initial state and control sequence
     Args:
         ocp: optimal control problem in LQT format
         x0: initial state

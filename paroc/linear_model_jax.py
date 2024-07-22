@@ -3,6 +3,7 @@ from jax import random, lax
 from paroc.discretize import lti_disc_u
 from paroc.lqt_problem import LQT
 
+
 def gen_waypoints(N: int):
     """
 
@@ -26,9 +27,7 @@ def gen_waypoints(N: int):
     y_start = y0 + (y1 - y0) / 2.0
     angle = 0.0
 
-    noise = (
-            da * 2.0 * (random.uniform(key, shape=(N,), minval=0.0, maxval=1.0) - 0.5)
-    )
+    noise = da * 2.0 * (random.uniform(key, shape=(N,), minval=0.0, maxval=1.0) - 0.5)
 
     def body(carry, inp):
         ang, prev_x, prev_y = carry
@@ -52,9 +51,7 @@ def gen_waypoints(N: int):
 
         return (ang, new_x, new_y), (new_x, new_y)
 
-    _, (x, y) = lax.scan(
-        body, (angle, x_start, y_start), xs=noise, length=N
-    )
+    _, (x, y) = lax.scan(body, (angle, x_start, y_start), xs=noise, length=N)
     x = jnp.hstack((x_start, x))
     y = jnp.hstack((y_start, y))
     wp = jnp.vstack((x, y))

@@ -20,11 +20,10 @@ ax.scatter(wp[0, :], wp[1, :], label="Tracked points", color="r")
 import time
 
 
-
-_jitted_par_bwd_pass = jax.jit(par_bwd_pass, backend='gpu')
-_jitted_par_fwd_pass = jax.jit(par_fwd_pass, backend='gpu')
-_jitted_seq_bwd_pass = jax.jit(seq_bwd_pass, backend='gpu')
-_jitted_seq_fwd_pass = jax.jit(seq_fwd_pass, backend='gpu')
+_jitted_par_bwd_pass = jax.jit(par_bwd_pass, backend="gpu")
+_jitted_par_fwd_pass = jax.jit(par_fwd_pass, backend="gpu")
+_jitted_seq_bwd_pass = jax.jit(seq_bwd_pass, backend="gpu")
+_jitted_seq_fwd_pass = jax.jit(seq_fwd_pass, backend="gpu")
 Kx_par, d_par, S_par, v_par, _, _ = _jitted_par_bwd_pass(lqt)
 u_par, x_par = _jitted_par_fwd_pass(lqt, x0, Kx_par, d_par)
 Kx_seq, d_seq, S_seq, v_seq = _jitted_seq_bwd_pass(lqt)
@@ -36,7 +35,7 @@ u_par, x_par = _jitted_par_fwd_pass(lqt, x0, Kx_par, d_par)
 jax.block_until_ready(Kx_par)
 end = time.time()
 
-print(end-start)
+print("par cuda time: ", end - start)
 
 start = time.time()
 Kx_seq, d_seq, S_seq, v_seq = _jitted_seq_bwd_pass(lqt)
@@ -44,7 +43,7 @@ u_seq, x_seq = _jitted_seq_fwd_pass(lqt, x0, Kx_seq, d_seq)
 
 jax.block_until_ready(Kx_seq)
 end = time.time()
-print(end-start)
+print("seq cuda time: ", end - start)
 
 # for _ in range(10):
 #     Kx_par, d_par, S_par, v_par, _, _ = _jitted_par_bwd_pass(lqt)
