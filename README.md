@@ -16,6 +16,6 @@ $ pip install .
 ```
 Interior point and ADMM extensions of parallel optimal control are available at
 
-https://github.com/casiacob/newton-optimal-control
+[interior point parallel optimal control](https://github.com/casiacob/ip-parallel-optimal-control)
 
-https://github.com/casiacob/admm_noc
+[admm parallel optimal control](https://github.com/casiacob/admm-parallel-optimal-control)
