@@ -21,10 +21,12 @@ Two constrained versions are available at
 [admm parallel optimal control](https://github.com/casiacob/admm-parallel-optimal-control)
 
 ## Interior Point 
-
+Clone the repository
 ```
-$ cd parallel-constrained-optimal-control
 $ git clone https://github.com/casiacob/ip-parallel-optimal-control.git
+```
+Install the package
+```
 $ cd ip-parallel-optimal-control
 $ pip install .
 ```
