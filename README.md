@@ -4,7 +4,7 @@
 Clone the repository:
 
 ```
-$ git clone git@github.com:casiacob/parallel-optimal-control.git
+$ git clone https://github.com/casiacob/parallel-optimal-control.git
 ```
 
 Create conda environment:
