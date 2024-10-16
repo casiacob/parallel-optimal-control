@@ -14,8 +14,16 @@ $ conda activate paroc
 $ cd parallel-optimal-control
 $ pip install .
 ```
-Interior point and ADMM extensions of parallel optimal control are available at
+Two constrained versions are available at
 
 [interior point parallel optimal control](https://github.com/casiacob/ip-parallel-optimal-control)
 
 [admm parallel optimal control](https://github.com/casiacob/admm-parallel-optimal-control)
+
+For interior point continue with 
+
+```
+$ git clone https://github.com/casiacob/ip-parallel-optimal-control.git
+$ cd ip-parallel-optimal-control
+$ pip install .
+```
