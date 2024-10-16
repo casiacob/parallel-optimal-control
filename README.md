@@ -40,3 +40,25 @@ Constrained cartpole runtime example
 $ cd examples
 $ python cartpole_runtime.py
 ```
+
+## ADMM
+Clone the repository
+```
+$ git clone https://github.com/casiacob/admm-parallel-optimal-control.git
+```
+Install the package
+```
+$ cd admm-parallel-optimal-control
+$ pip install .
+```
+Constrained pendulum runtime example
+```
+$ cd examples
+$ python pendulum_runtime.py
+```
+Constrained cartpole runtime example
+```
+$ cd examples
+$ python cartpole_runtime.py
+```
+
