@@ -9,6 +9,8 @@ $ git clone https://github.com/casiacob/parallel-optimal-control.git
 
 Create conda environment:
 ```
+$ mkdir parallel-constrained-optimal-control
+$ cd parallel-constrained-optimal-control
 $ conda create --name paroc python=3.10
 $ conda activate paroc
 $ cd parallel-optimal-control
@@ -20,10 +22,21 @@ Two constrained versions are available at
 
 [admm parallel optimal control](https://github.com/casiacob/admm-parallel-optimal-control)
 
-For interior point continue with 
+## Interior Point 
 
 ```
+$ cd parallel-constrained-optimal-control
 $ git clone https://github.com/casiacob/ip-parallel-optimal-control.git
 $ cd ip-parallel-optimal-control
 $ pip install .
+```
+Pendulum runtime example
+```
+$ cd examples
+$ python pendulum_runtime.py
+```
+Cartpole runtime example
+```
+$ cd examples
+$ python cartpole_runtime.py
 ```
