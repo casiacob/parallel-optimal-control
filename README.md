@@ -9,8 +9,6 @@ $ git clone https://github.com/casiacob/parallel-optimal-control.git
 
 Create conda environment:
 ```
-$ mkdir parallel-constrained-optimal-control
-$ cd parallel-constrained-optimal-control
 $ conda create --name paroc python=3.10
 $ conda activate paroc
 $ cd parallel-optimal-control
