@@ -30,12 +30,12 @@ Install the package
 $ cd ip-parallel-optimal-control
 $ pip install .
 ```
-Pendulum runtime example
+Constrained pendulum runtime example
 ```
 $ cd examples
 $ python pendulum_runtime.py
 ```
-Cartpole runtime example
+Constrained cartpole runtime example
 ```
 $ cd examples
 $ python cartpole_runtime.py
