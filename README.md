@@ -23,6 +23,7 @@ Two constrained versions are available at
 ## Interior Point 
 Clone the repository
 ```
+$ cd ..
 $ git clone https://github.com/casiacob/ip-parallel-optimal-control.git
 ```
 Install the package
@@ -44,6 +45,7 @@ $ python cartpole_runtime.py
 ## ADMM
 Clone the repository
 ```
+$ cd ..
 $ git clone https://github.com/casiacob/admm-parallel-optimal-control.git
 ```
 Install the package
