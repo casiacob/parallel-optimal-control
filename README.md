@@ -1,6 +1,6 @@
-## Jax implementation of parallel linear quadratic tracker
+## Jax implementation of parallel optimal control and constrained parallel optimal control
 
-## Instructions for installing
+## Unconstrained parallel optimal control
 Clone the repository:
 
 ```
