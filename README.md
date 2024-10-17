@@ -25,9 +25,6 @@ Clone the repository
 ```
 $ cd ..
 $ git clone https://github.com/casiacob/ip-parallel-optimal-control.git
-```
-Install the package
-```
 $ cd ip-parallel-optimal-control
 $ pip install .
 ```
@@ -47,9 +44,6 @@ Clone the repository
 ```
 $ cd ..
 $ git clone https://github.com/casiacob/admm-parallel-optimal-control.git
-```
-Install the package
-```
 $ cd admm-parallel-optimal-control
 $ pip install .
 ```
