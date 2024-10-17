@@ -31,12 +31,12 @@ Install the package
 $ cd ip-parallel-optimal-control
 $ pip install .
 ```
-Constrained pendulum runtime example
+Constrained pendulum runtime example (requires GPU)
 ```
 $ cd examples
 $ python pendulum_runtime.py
 ```
-Constrained cartpole runtime example
+Constrained cartpole runtime example (requires GPU)
 ```
 $ cd examples
 $ python cartpole_runtime.py
@@ -53,12 +53,12 @@ Install the package
 $ cd admm-parallel-optimal-control
 $ pip install .
 ```
-Constrained pendulum runtime example
+Constrained pendulum runtime example (requires GPU)
 ```
 $ cd examples
 $ python pendulum_runtime.py
 ```
-Constrained cartpole runtime example
+Constrained cartpole runtime example (requires GPU)
 ```
 $ cd examples
 $ python cartpole_runtime.py
